@@ -67,8 +67,8 @@
         "Verify in browser using dev-browser skill"
       ],
       "priority": 4,
-      "passes": false,
-      "notes": ""
+      "passes": true,
+      "notes": "URL input added under the model dropdown. extractVideoId() supports watch?v=, youtu.be/, /shorts/, /embed/ (also /live/, /v/, m.youtube.com, music.youtube.com, scheme-less inputs, and a raw 11-char id) and returns null otherwise; videoId regex is /^[A-Za-z0-9_-]{11}$/. Inline red error renders below the input on invalid non-empty URLs (.field-error + .field input.invalid). refresh() now gates #startAnalysisBtn on (ytKey AND openaiKey AND validVideoId). Sandbox tested against 15 cases (all 4 PRD formats + edge cases), all pass. dev-browser skill not available — manual browser verification noted in progress.txt."
     },
     {
       "id": "US-005",

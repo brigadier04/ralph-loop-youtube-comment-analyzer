@@ -145,6 +145,22 @@ body {
   color: var(--color-positive);
 }
 
+.field input.invalid,
+.field input.invalid:focus {
+  border-color: var(--color-negative);
+  box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.2);
+}
+
+.field-error {
+  margin: 0;
+  font-size: 0.85rem;
+  color: var(--color-negative);
+}
+
+.field-error[hidden] {
+  display: none;
+}
+
 .button-row {
   display: flex;
   flex-wrap: wrap;
