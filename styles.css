@@ -245,9 +245,276 @@ body {
   border-top: 1px solid var(--color-border);
 }
 
+/* ---- Dashboard panel (US-007) ---- */
+
+.dashboard-panel[hidden] {
+  display: none;
+}
+
+.video-info {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.85rem;
+  align-items: center;
+  margin-bottom: calc(var(--space) * 1.25);
+  padding-bottom: var(--space);
+  border-bottom: 1px solid var(--color-border);
+}
+
+.video-thumb {
+  width: 160px;
+  max-width: 100%;
+  aspect-ratio: 16 / 9;
+  object-fit: cover;
+  border-radius: 8px;
+  background: var(--color-surface-2);
+  flex-shrink: 0;
+}
+
+.video-thumb[hidden] {
+  display: none;
+}
+
+.video-meta {
+  flex: 1 1 200px;
+  min-width: 0;
+}
+
+.video-title {
+  margin: 0 0 0.25rem 0;
+  font-size: 1rem;
+  line-height: 1.4;
+  word-break: break-word;
+}
+
+.video-title:empty::before {
+  content: "동영상 정보를 불러오지 못했습니다.";
+  color: var(--color-muted);
+  font-weight: normal;
+  font-size: 0.9rem;
+}
+
+.video-channel {
+  margin: 0;
+  font-size: 0.85rem;
+  color: var(--color-muted);
+}
+
+.video-channel:empty {
+  display: none;
+}
+
+.sentiment-block {
+  display: flex;
+  flex-wrap: wrap;
+  gap: calc(var(--space) * 1.25);
+  align-items: center;
+  justify-content: center;
+  margin-bottom: calc(var(--space) * 1.25);
+}
+
+.chart-wrapper {
+  position: relative;
+  width: 100%;
+  max-width: 240px;
+  aspect-ratio: 1 / 1;
+  flex-shrink: 0;
+}
+
+.chart-wrapper canvas {
+  display: block;
+  width: 100% !important;
+  height: 100% !important;
+}
+
+.chart-center {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+  text-align: center;
+}
+
+.chart-center strong {
+  font-size: clamp(1.4rem, 5vw, 1.85rem);
+  font-weight: 700;
+  color: var(--color-text);
+  line-height: 1;
+}
+
+.chart-center span {
+  margin-top: 0.2rem;
+  font-size: 0.8rem;
+  color: var(--color-muted);
+}
+
+.sentiment-legend {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  min-width: 140px;
+}
+
+.sentiment-item {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.9rem;
+}
+
+.sentiment-dot {
+  width: 0.75rem;
+  height: 0.75rem;
+  border-radius: 50%;
+  flex-shrink: 0;
+  display: inline-block;
+}
+
+.sentiment-dot.positive {
+  background: var(--color-positive);
+}
+
+.sentiment-dot.neutral {
+  background: var(--color-neutral);
+}
+
+.sentiment-dot.negative {
+  background: var(--color-negative);
+}
+
+.sentiment-label {
+  flex: 1;
+  color: var(--color-muted);
+}
+
+.sentiment-value {
+  font-weight: 600;
+  color: var(--color-text);
+  font-variant-numeric: tabular-nums;
+}
+
+.results-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--space);
+}
+
+.result-section {
+  min-width: 0;
+}
+
+.result-title {
+  margin: 0 0 0.6rem 0;
+  font-size: 1rem;
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.result-title::before {
+  content: "";
+  width: 0.55rem;
+  height: 0.55rem;
+  border-radius: 50%;
+  background: currentColor;
+  flex-shrink: 0;
+}
+
+.strengths-title {
+  color: var(--color-positive);
+}
+
+.improvements-title {
+  color: var(--color-negative);
+}
+
+.result-cards {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+}
+
+.result-card {
+  background: var(--color-surface-2);
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  padding: 0.7rem 0.8rem;
+}
+
+.result-card.empty {
+  color: var(--color-muted);
+  font-size: 0.9rem;
+  text-align: center;
+}
+
+.result-card .comment {
+  margin: 0 0 0.5rem 0;
+  font-size: 0.9rem;
+  line-height: 1.5;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
+.result-card .reason {
+  margin: 0;
+  padding-left: 0.6rem;
+  font-size: 0.85rem;
+  color: var(--color-muted);
+  border-left: 3px solid var(--color-accent);
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
+@media (max-width: 640px) {
+  .results-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .sentiment-block {
+    flex-direction: column;
+    gap: var(--space);
+  }
+
+  .sentiment-legend {
+    width: 100%;
+    flex-direction: row;
+    justify-content: space-between;
+    flex-wrap: wrap;
+  }
+
+  .sentiment-item {
+    flex: 1 1 30%;
+    min-width: 0;
+  }
+}
+
 @media (max-width: 480px) {
   .button-row {
     flex-direction: column;
     align-items: stretch;
+  }
+
+  .video-info {
+    align-items: flex-start;
+  }
+
+  .video-thumb {
+    width: 100%;
+    max-width: 100%;
+  }
+
+  .chart-wrapper {
+    max-width: 200px;
   }
 }

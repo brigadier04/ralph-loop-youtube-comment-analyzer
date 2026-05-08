@@ -58,9 +58,16 @@
 
   const COMMENTS_API_URL =
     'https://www.googleapis.com/youtube/v3/commentThreads';
+  const VIDEOS_API_URL = 'https://www.googleapis.com/youtube/v3/videos';
   const COMMENTS_PAGE_SIZE = 100;
   const COMMENTS_MAX_PAGES = 5;
   const COMMENTS_TARGET = COMMENTS_PAGE_SIZE * COMMENTS_MAX_PAGES;
+
+  const SENTIMENT_COLORS = Object.freeze({
+    positive: '#22c55e',
+    neutral: '#94a3b8',
+    negative: '#ef4444',
+  });
 
   const OPENAI_API_URL = 'https://api.openai.com/v1/chat/completions';
   const OPENAI_CHUNK_SIZE = 100;
@@ -525,6 +532,66 @@
     return collected;
   }
 
+  async function fetchVideoInfo(videoId, apiKey) {
+    if (!VIDEO_ID_PATTERN.test(String(videoId || ''))) {
+      throw makeError('invalidVideoId', '유효하지 않은 동영상 ID 입니다.');
+    }
+    if (!apiKey) {
+      throw makeError('missingKey', 'YouTube API 키가 없습니다.');
+    }
+
+    const url = new URL(VIDEOS_API_URL);
+    url.searchParams.set('part', 'snippet');
+    url.searchParams.set('id', videoId);
+    url.searchParams.set('key', apiKey);
+
+    let response;
+    try {
+      response = await fetch(url.toString());
+    } catch (_) {
+      throw makeError(
+        'network',
+        '네트워크 오류가 발생했습니다. 연결을 확인하고 다시 시도해 주세요.'
+      );
+    }
+
+    let body = null;
+    try {
+      body = await response.json();
+    } catch (_) {
+      body = null;
+    }
+
+    if (!response.ok) {
+      throw classifyYouTubeError(response.status, body);
+    }
+
+    const item =
+      body && Array.isArray(body.items) && body.items.length > 0
+        ? body.items[0]
+        : null;
+    if (!item || !item.snippet) {
+      return null;
+    }
+
+    const snippet = item.snippet;
+    const thumbs = snippet.thumbnails || {};
+    const thumb =
+      thumbs.medium ||
+      thumbs.high ||
+      thumbs.standard ||
+      thumbs.maxres ||
+      thumbs.default ||
+      null;
+
+    return {
+      title: typeof snippet.title === 'string' ? snippet.title : '',
+      thumbnail: thumb && typeof thumb.url === 'string' ? thumb.url : '',
+      channelTitle:
+        typeof snippet.channelTitle === 'string' ? snippet.channelTitle : '',
+    };
+  }
+
   function extractVideoId(rawUrl) {
     if (!rawUrl) return null;
     const trimmed = String(rawUrl).trim();
@@ -587,6 +654,17 @@
     const videoUrlInput = document.getElementById('videoUrlInput');
     const videoUrlError = document.getElementById('videoUrlError');
     const analysisStatus = document.getElementById('analysisStatus');
+    const dashboardPanel = document.getElementById('dashboardPanel');
+    const videoTitleEl = document.getElementById('videoTitle');
+    const videoChannelEl = document.getElementById('videoChannel');
+    const videoThumbEl = document.getElementById('videoThumbnail');
+    const sentimentChartEl = document.getElementById('sentimentChart');
+    const chartCenterCountEl = document.getElementById('chartCenterCount');
+    const sentimentPositiveEl = document.getElementById('sentimentPositive');
+    const sentimentNeutralEl = document.getElementById('sentimentNeutral');
+    const sentimentNegativeEl = document.getElementById('sentimentNegative');
+    const strengthsListEl = document.getElementById('strengthsList');
+    const improvementsListEl = document.getElementById('improvementsList');
 
     if (
       !ytInput ||
@@ -600,12 +678,24 @@
       !modelSelect ||
       !videoUrlInput ||
       !videoUrlError ||
-      !analysisStatus
+      !analysisStatus ||
+      !dashboardPanel ||
+      !videoTitleEl ||
+      !videoChannelEl ||
+      !videoThumbEl ||
+      !sentimentChartEl ||
+      !chartCenterCountEl ||
+      !sentimentPositiveEl ||
+      !sentimentNeutralEl ||
+      !sentimentNegativeEl ||
+      !strengthsListEl ||
+      !improvementsListEl
     ) {
       return;
     }
 
     let inFlight = false;
+    let chartInstance = null;
 
     const savedModel = safeGet(STORAGE_KEYS.MODEL);
     modelSelect.value = MODEL_OPTIONS.includes(savedModel)
@@ -686,6 +776,136 @@
       }
     }
 
+    function renderResultCards(listEl, items) {
+      while (listEl.firstChild) {
+        listEl.removeChild(listEl.firstChild);
+      }
+
+      if (!Array.isArray(items) || items.length === 0) {
+        const li = document.createElement('li');
+        li.className = 'result-card empty';
+        li.textContent = '대표 댓글이 없습니다.';
+        listEl.appendChild(li);
+        return;
+      }
+
+      items.forEach(function (item) {
+        const li = document.createElement('li');
+        li.className = 'result-card';
+
+        const commentEl = document.createElement('p');
+        commentEl.className = 'comment';
+        commentEl.textContent = (item && item.comment) || '';
+        li.appendChild(commentEl);
+
+        if (item && item.reason) {
+          const reasonEl = document.createElement('p');
+          reasonEl.className = 'reason';
+          reasonEl.textContent = item.reason;
+          li.appendChild(reasonEl);
+        }
+
+        listEl.appendChild(li);
+      });
+    }
+
+    function renderVideoInfo(videoInfo) {
+      if (videoInfo && videoInfo.title) {
+        videoTitleEl.textContent = videoInfo.title;
+      } else {
+        videoTitleEl.textContent = '';
+      }
+
+      if (videoInfo && videoInfo.channelTitle) {
+        videoChannelEl.textContent = videoInfo.channelTitle;
+      } else {
+        videoChannelEl.textContent = '';
+      }
+
+      if (videoInfo && videoInfo.thumbnail) {
+        videoThumbEl.src = videoInfo.thumbnail;
+        videoThumbEl.alt = videoInfo.title
+          ? videoInfo.title + ' 썸네일'
+          : '동영상 썸네일';
+        videoThumbEl.hidden = false;
+      } else {
+        videoThumbEl.removeAttribute('src');
+        videoThumbEl.alt = '';
+        videoThumbEl.hidden = true;
+      }
+    }
+
+    function renderSentimentChart(sentiment) {
+      if (chartInstance) {
+        chartInstance.destroy();
+        chartInstance = null;
+      }
+      if (typeof Chart === 'undefined' || !sentimentChartEl) {
+        return;
+      }
+
+      chartInstance = new Chart(sentimentChartEl.getContext('2d'), {
+        type: 'doughnut',
+        data: {
+          labels: ['긍정', '중립', '부정'],
+          datasets: [
+            {
+              data: [
+                sentiment.positive,
+                sentiment.neutral,
+                sentiment.negative,
+              ],
+              backgroundColor: [
+                SENTIMENT_COLORS.positive,
+                SENTIMENT_COLORS.neutral,
+                SENTIMENT_COLORS.negative,
+              ],
+              borderWidth: 0,
+              hoverOffset: 6,
+            },
+          ],
+        },
+        options: {
+          cutout: '70%',
+          responsive: true,
+          maintainAspectRatio: false,
+          animation: { duration: 400 },
+          plugins: {
+            legend: { display: false },
+            tooltip: {
+              callbacks: {
+                label: function (ctx) {
+                  const total =
+                    sentiment.positive + sentiment.neutral + sentiment.negative;
+                  const value = typeof ctx.parsed === 'number' ? ctx.parsed : 0;
+                  const pct =
+                    total > 0 ? Math.round((value / total) * 100) : 0;
+                  return ctx.label + ': ' + value + ' (' + pct + '%)';
+                },
+              },
+            },
+          },
+        },
+      });
+    }
+
+    function renderDashboard(analysis, videoInfo) {
+      renderVideoInfo(videoInfo);
+
+      const sentiment = analysis.sentiment;
+      sentimentPositiveEl.textContent = String(sentiment.positive);
+      sentimentNeutralEl.textContent = String(sentiment.neutral);
+      sentimentNegativeEl.textContent = String(sentiment.negative);
+      chartCenterCountEl.textContent = String(analysis.analyzedCount);
+
+      renderSentimentChart(sentiment);
+
+      renderResultCards(strengthsListEl, analysis.strengths);
+      renderResultCards(improvementsListEl, analysis.improvements);
+
+      dashboardPanel.hidden = false;
+    }
+
     async function runAnalysis() {
       if (inFlight) return;
       const ytKey = safeGet(STORAGE_KEYS.YT);
@@ -696,8 +916,13 @@
       }
 
       inFlight = true;
+      dashboardPanel.hidden = true;
       refresh();
       setStatus(`댓글 수집 중… 0/${COMMENTS_TARGET}`, null);
+
+      const videoInfoPromise = fetchVideoInfo(videoId, ytKey).catch(function () {
+        return null;
+      });
 
       try {
         const comments = await collectComments(videoId, ytKey, {
@@ -736,10 +961,13 @@
           },
         });
 
+        const videoInfo = await videoInfoPromise;
+        renderDashboard(analysis, videoInfo);
+
         const s = analysis.sentiment;
         setStatus(
           `분석 완료 — 긍정 ${s.positive} · 중립 ${s.neutral} · 부정 ${s.negative}` +
-            ` (총 ${analysis.analyzedCount}개). 결과 대시보드는 다음 단계에서 추가됩니다.`,
+            ` (총 ${analysis.analyzedCount}개). 결과를 아래에서 확인하세요.`,
           'success'
         );
       } catch (err) {

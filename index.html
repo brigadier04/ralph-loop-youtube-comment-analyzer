@@ -117,6 +117,78 @@
           aria-live="polite"
         ></p>
       </section>
+
+      <section
+        class="panel dashboard-panel"
+        id="dashboardPanel"
+        aria-labelledby="dashboard-title"
+        hidden
+      >
+        <h2 id="dashboard-title" class="panel-title">분석 결과</h2>
+
+        <div class="video-info" id="videoInfo">
+          <img
+            class="video-thumb"
+            id="videoThumbnail"
+            alt=""
+            referrerpolicy="no-referrer"
+            hidden
+          />
+          <div class="video-meta">
+            <h3 class="video-title" id="videoTitle"></h3>
+            <p class="video-channel" id="videoChannel"></p>
+          </div>
+        </div>
+
+        <div class="sentiment-block">
+          <div class="chart-wrapper">
+            <canvas id="sentimentChart" aria-label="감정 분포 도넛 차트"></canvas>
+            <div class="chart-center" aria-hidden="true">
+              <strong id="chartCenterCount">0</strong>
+              <span>댓글</span>
+            </div>
+          </div>
+
+          <ul class="sentiment-legend" aria-label="감정 분포 범례">
+            <li class="sentiment-item">
+              <span class="sentiment-dot positive" aria-hidden="true"></span>
+              <span class="sentiment-label">긍정</span>
+              <strong class="sentiment-value" id="sentimentPositive">0</strong>
+            </li>
+            <li class="sentiment-item">
+              <span class="sentiment-dot neutral" aria-hidden="true"></span>
+              <span class="sentiment-label">중립</span>
+              <strong class="sentiment-value" id="sentimentNeutral">0</strong>
+            </li>
+            <li class="sentiment-item">
+              <span class="sentiment-dot negative" aria-hidden="true"></span>
+              <span class="sentiment-label">부정</span>
+              <strong class="sentiment-value" id="sentimentNegative">0</strong>
+            </li>
+          </ul>
+        </div>
+
+        <div class="results-grid">
+          <section
+            class="result-section"
+            aria-labelledby="strengths-title"
+          >
+            <h3 id="strengths-title" class="result-title strengths-title">
+              잘하는 점
+            </h3>
+            <ul class="result-cards" id="strengthsList"></ul>
+          </section>
+          <section
+            class="result-section"
+            aria-labelledby="improvements-title"
+          >
+            <h3 id="improvements-title" class="result-title improvements-title">
+              개선해야 할 점
+            </h3>
+            <ul class="result-cards" id="improvementsList"></ul>
+          </section>
+        </div>
+      </section>
     </main>
 
     <footer class="app-footer">
@@ -126,6 +198,7 @@
       >
     </footer>
 
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.6/dist/chart.umd.min.js"></script>
     <script src="./app.js"></script>
   </body>
 </html>
