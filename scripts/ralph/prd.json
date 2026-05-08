@@ -51,8 +51,8 @@
         "Verify in browser using dev-browser skill"
       ],
       "priority": 3,
-      "passes": false,
-      "notes": ""
+      "passes": true,
+      "notes": "Model dropdown added inside the analysis panel with options gpt-4o-mini (default, '저렴'), gpt-4o ('고품질'), gpt-4-turbo. Selection is persisted to localStorage key yca.model on change and re-applied on reload (with default fallback for unknown/missing values). dev-browser skill not available — manual browser verification noted in progress.txt."
     },
     {
       "id": "US-004",

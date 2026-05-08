@@ -15,6 +15,13 @@
     MODEL: 'yca.model',
   });
 
+  const MODEL_OPTIONS = Object.freeze([
+    'gpt-4o-mini',
+    'gpt-4o',
+    'gpt-4-turbo',
+  ]);
+  const DEFAULT_MODEL = 'gpt-4o-mini';
+
   function safeGet(key) {
     try {
       return localStorage.getItem(key) || '';
@@ -56,6 +63,7 @@
     const clearBtn = document.getElementById('clearKeysBtn');
     const startBtn = document.getElementById('startAnalysisBtn');
     const analysisHint = document.getElementById('analysisHint');
+    const modelSelect = document.getElementById('modelSelect');
 
     if (
       !ytInput ||
@@ -65,10 +73,27 @@
       !saveBtn ||
       !clearBtn ||
       !startBtn ||
-      !analysisHint
+      !analysisHint ||
+      !modelSelect
     ) {
       return;
     }
+
+    const savedModel = safeGet(STORAGE_KEYS.MODEL);
+    modelSelect.value = MODEL_OPTIONS.includes(savedModel)
+      ? savedModel
+      : DEFAULT_MODEL;
+    if (!savedModel) {
+      safeSet(STORAGE_KEYS.MODEL, modelSelect.value);
+    }
+
+    modelSelect.addEventListener('change', function onModelChange() {
+      const next = MODEL_OPTIONS.includes(modelSelect.value)
+        ? modelSelect.value
+        : DEFAULT_MODEL;
+      modelSelect.value = next;
+      safeSet(STORAGE_KEYS.MODEL, next);
+    });
 
     function renderStatus(el, key) {
       if (key) {

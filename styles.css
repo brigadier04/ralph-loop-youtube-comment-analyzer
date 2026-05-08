@@ -106,7 +106,8 @@ body {
 }
 
 .field input[type="password"],
-.field input[type="text"] {
+.field input[type="text"],
+.field select {
   width: 100%;
   padding: 0.6rem 0.75rem;
   font: inherit;
@@ -118,8 +119,18 @@ body {
   transition: border-color 120ms ease, box-shadow 120ms ease;
 }
 
+.field select {
+  appearance: none;
+  cursor: pointer;
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'><path fill='%2394a3b8' d='M6 8 0 0h12z'/></svg>");
+  background-repeat: no-repeat;
+  background-position: right 0.85rem center;
+  padding-right: 2.25rem;
+}
+
 .field input[type="password"]:focus,
-.field input[type="text"]:focus {
+.field input[type="text"]:focus,
+.field select:focus {
   border-color: var(--color-accent);
   box-shadow: 0 0 0 3px rgba(56, 189, 248, 0.2);
 }
