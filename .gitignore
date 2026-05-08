@@ -14,7 +14,18 @@ desktop.ini
 *.swp
 *~
 
-# Local env / secrets
+# Local env / secrets (BYOK keys live in browser localStorage, not on disk)
 .env
 .env.local
 .env.*.local
+
+# Dependencies (project intentionally has no bundler / node_modules)
+node_modules/
+
+# Build artifacts (project is static; no build step expected)
+dist/
+build/
+
+# Logs
+*.log
+npm-debug.log*

@@ -1,0 +1,77 @@
+/* YouTube Comment Analyzer - base styles */
+
+:root {
+  --color-bg: #0f172a;
+  --color-surface: #1e293b;
+  --color-text: #e2e8f0;
+  --color-muted: #94a3b8;
+  --color-accent: #38bdf8;
+  --color-positive: #22c55e;
+  --color-neutral: #94a3b8;
+  --color-negative: #ef4444;
+  --radius: 12px;
+  --space: 1rem;
+  --max-width: 960px;
+  font-family: system-ui, -apple-system, "Segoe UI", "Apple SD Gothic Neo",
+    "Noto Sans KR", sans-serif;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+  background: var(--color-bg);
+  color: var(--color-text);
+  min-height: 100%;
+}
+
+body {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+  line-height: 1.5;
+}
+
+.app-header {
+  padding: calc(var(--space) * 2) var(--space);
+  text-align: center;
+  border-bottom: 1px solid rgba(148, 163, 184, 0.15);
+}
+
+.app-header h1 {
+  margin: 0 0 0.5rem 0;
+  font-size: clamp(1.5rem, 4vw, 2rem);
+}
+
+.tagline {
+  margin: 0;
+  color: var(--color-muted);
+  font-size: 0.95rem;
+}
+
+.app-main {
+  flex: 1;
+  width: 100%;
+  max-width: var(--max-width);
+  margin: 0 auto;
+  padding: calc(var(--space) * 1.5) var(--space);
+}
+
+.placeholder {
+  color: var(--color-muted);
+  text-align: center;
+  padding: calc(var(--space) * 3) var(--space);
+  border: 1px dashed rgba(148, 163, 184, 0.3);
+  border-radius: var(--radius);
+}
+
+.app-footer {
+  padding: var(--space);
+  text-align: center;
+  color: var(--color-muted);
+  border-top: 1px solid rgba(148, 163, 184, 0.15);
+}
