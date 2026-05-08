@@ -3,12 +3,15 @@
 :root {
   --color-bg: #0f172a;
   --color-surface: #1e293b;
+  --color-surface-2: #273449;
   --color-text: #e2e8f0;
   --color-muted: #94a3b8;
   --color-accent: #38bdf8;
+  --color-accent-hover: #0ea5e9;
   --color-positive: #22c55e;
   --color-neutral: #94a3b8;
   --color-negative: #ef4444;
+  --color-border: rgba(148, 163, 184, 0.2);
   --radius: 12px;
   --space: 1rem;
   --max-width: 960px;
@@ -39,7 +42,7 @@ body {
 .app-header {
   padding: calc(var(--space) * 2) var(--space);
   text-align: center;
-  border-bottom: 1px solid rgba(148, 163, 184, 0.15);
+  border-bottom: 1px solid var(--color-border);
 }
 
 .app-header h1 {
@@ -59,19 +62,145 @@ body {
   max-width: var(--max-width);
   margin: 0 auto;
   padding: calc(var(--space) * 1.5) var(--space);
+  display: flex;
+  flex-direction: column;
+  gap: calc(var(--space) * 1.25);
 }
 
-.placeholder {
-  color: var(--color-muted);
-  text-align: center;
-  padding: calc(var(--space) * 3) var(--space);
-  border: 1px dashed rgba(148, 163, 184, 0.3);
+.panel {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
   border-radius: var(--radius);
+  padding: calc(var(--space) * 1.25);
+}
+
+.panel-title {
+  margin: 0 0 0.5rem 0;
+  font-size: 1.15rem;
+}
+
+.hint {
+  margin: 0 0 var(--space) 0;
+  color: var(--color-muted);
+  font-size: 0.9rem;
+}
+
+.hint code {
+  background: var(--color-surface-2);
+  padding: 0.05rem 0.35rem;
+  border-radius: 4px;
+  font-size: 0.85em;
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  margin-bottom: var(--space);
+}
+
+.field label {
+  font-size: 0.9rem;
+  color: var(--color-text);
+  font-weight: 500;
+}
+
+.field input[type="password"],
+.field input[type="text"] {
+  width: 100%;
+  padding: 0.6rem 0.75rem;
+  font: inherit;
+  color: var(--color-text);
+  background: var(--color-surface-2);
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  outline: none;
+  transition: border-color 120ms ease, box-shadow 120ms ease;
+}
+
+.field input[type="password"]:focus,
+.field input[type="text"]:focus {
+  border-color: var(--color-accent);
+  box-shadow: 0 0 0 3px rgba(56, 189, 248, 0.2);
+}
+
+.key-status {
+  margin: 0;
+  font-size: 0.8rem;
+  color: var(--color-muted);
+}
+
+.key-status.saved {
+  color: var(--color-positive);
+}
+
+.button-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-top: 0.25rem;
+}
+
+.btn {
+  appearance: none;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  padding: 0.55rem 1rem;
+  font: inherit;
+  font-weight: 500;
+  cursor: pointer;
+  background: var(--color-surface-2);
+  color: var(--color-text);
+  transition: background 120ms ease, border-color 120ms ease, opacity 120ms ease;
+}
+
+.btn:hover:not(:disabled) {
+  background: #334155;
+}
+
+.btn:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 2px;
+}
+
+.btn-primary {
+  background: var(--color-accent);
+  color: #0b1220;
+}
+
+.btn-primary:hover:not(:disabled) {
+  background: var(--color-accent-hover);
+}
+
+.btn-secondary {
+  background: transparent;
+  border-color: var(--color-border);
+}
+
+.btn-accent {
+  background: var(--color-positive);
+  color: #06210d;
+}
+
+.btn-accent:hover:not(:disabled) {
+  background: #16a34a;
+}
+
+.btn:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
 }
 
 .app-footer {
   padding: var(--space);
   text-align: center;
   color: var(--color-muted);
-  border-top: 1px solid rgba(148, 163, 184, 0.15);
+  border-top: 1px solid var(--color-border);
+}
+
+@media (max-width: 480px) {
+  .button-row {
+    flex-direction: column;
+    align-items: stretch;
+  }
 }

@@ -15,11 +15,75 @@
     </header>
 
     <main id="app" class="app-main">
-      <p class="placeholder">앱이 초기화되었습니다. 후속 스토리에서 UI가 채워집니다.</p>
+      <section class="panel api-keys-panel" aria-labelledby="api-keys-title">
+        <h2 id="api-keys-title" class="panel-title">API 키 설정</h2>
+        <p class="hint">
+          키는 외부로 전송되지 않습니다. 브라우저
+          <code>localStorage</code> 에만 저장되며, YouTube Data API와 OpenAI API
+          호출에만 사용됩니다.
+        </p>
+
+        <div class="field">
+          <label for="ytKeyInput">YouTube Data API 키</label>
+          <input
+            id="ytKeyInput"
+            name="ytKey"
+            type="password"
+            autocomplete="off"
+            spellcheck="false"
+            placeholder="AIza..."
+          />
+          <p class="key-status" id="ytKeyStatus" aria-live="polite">
+            저장된 키가 없습니다.
+          </p>
+        </div>
+
+        <div class="field">
+          <label for="openaiKeyInput">OpenAI API 키</label>
+          <input
+            id="openaiKeyInput"
+            name="openaiKey"
+            type="password"
+            autocomplete="off"
+            spellcheck="false"
+            placeholder="sk-..."
+          />
+          <p class="key-status" id="openaiKeyStatus" aria-live="polite">
+            저장된 키가 없습니다.
+          </p>
+        </div>
+
+        <div class="button-row">
+          <button type="button" id="saveKeysBtn" class="btn btn-primary">
+            저장
+          </button>
+          <button type="button" id="clearKeysBtn" class="btn btn-secondary">
+            키 삭제
+          </button>
+        </div>
+      </section>
+
+      <section class="panel analysis-panel" aria-labelledby="analysis-title">
+        <h2 id="analysis-title" class="panel-title">분석</h2>
+        <p class="hint" id="analysisHint">
+          두 개의 API 키를 모두 저장하면 분석을 시작할 수 있습니다.
+        </p>
+        <button
+          type="button"
+          id="startAnalysisBtn"
+          class="btn btn-accent"
+          disabled
+        >
+          분석 시작
+        </button>
+      </section>
     </main>
 
     <footer class="app-footer">
-      <small>BYOK · 키는 브라우저 localStorage 에만 저장되며 외부로 전송되지 않습니다.</small>
+      <small
+        >BYOK · 키는 브라우저 localStorage 에만 저장되며 외부로 전송되지
+        않습니다.</small
+      >
     </footer>
 
     <script src="./app.js"></script>

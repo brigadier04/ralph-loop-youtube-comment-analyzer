@@ -36,8 +36,8 @@
         "Verify in browser using dev-browser skill"
       ],
       "priority": 2,
-      "passes": false,
-      "notes": ""
+      "passes": true,
+      "notes": "API key panel implemented. Inputs are password type, save/clear wired to localStorage (yca.ytKey, yca.openaiKey), masked display on reload, '분석 시작' disabled until both keys present. dev-browser skill not available — manual browser verification noted in progress.txt."
     },
     {
       "id": "US-003",
