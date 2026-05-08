@@ -1,0 +1,20 @@
+# Ralph runtime artifacts
+scripts/ralph/.last-branch
+scripts/ralph/progress.txt
+scripts/ralph/archive/
+
+# OS
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Editors
+.vscode/
+.idea/
+*.swp
+*~
+
+# Local env / secrets
+.env
+.env.local
+.env.*.local

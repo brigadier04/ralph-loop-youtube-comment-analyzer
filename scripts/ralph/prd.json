@@ -1,0 +1,163 @@
+{
+  "project": "YouTube Comment Analyzer",
+  "branchName": "main",
+  "description": "YouTube 동영상 링크를 입력하면 댓글 최대 500개를 수집하고 GPT로 긍정/부정/중립 비율과 잘하는 점·개선점 댓글 5개씩을 추출해 보여주는 정적 SPA. 회원가입·서버·빌드 없음. 사용자 본인의 YouTube Data API 키와 OpenAI API 키를 localStorage에 저장해 BYOK 방식으로 동작. GitHub Pages 배포 가능.",
+  "userStories": [
+    {
+      "id": "US-001",
+      "title": "프로젝트 스캐폴딩 (Vanilla HTML/CSS/JS)",
+      "description": "As a developer, I want a clean Vanilla HTML/CSS/JS skeleton so that subsequent stories have a consistent foundation.",
+      "acceptanceCriteria": [
+        "index.html, styles.css, app.js, README.md, .gitignore 파일 생성",
+        "index.html은 lang='ko', UTF-8 charset, viewport meta 포함",
+        "index.html이 styles.css와 app.js를 link/script 태그로 로드",
+        "app.js는 'use strict';로 시작",
+        "node_modules·번들러·빌드 도구 사용 안 함",
+        "node --check app.js 통과",
+        "index.html을 브라우저에서 직접 열었을 때 콘솔 에러 없음",
+        "Verify in browser using dev-browser skill"
+      ],
+      "priority": 1,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "US-002",
+      "title": "API 키 입력·저장·삭제 UI",
+      "description": "As a user, I want to enter my YouTube and OpenAI API keys once and have them persist so that I don't re-enter them every visit.",
+      "acceptanceCriteria": [
+        "두 개의 password 타입 input 필드 (YouTube API Key, OpenAI API Key)",
+        "'저장' 버튼 클릭 시 localStorage 키 yca.ytKey, yca.openaiKey 에 저장",
+        "페이지 재로드 시 저장된 키가 자동 로드되어 마스킹 표시 (예: sk-...abcd)",
+        "'키 삭제' 버튼으로 localStorage에서 즉시 제거",
+        "두 키가 모두 없으면 '분석 시작' 버튼 disabled",
+        "'키는 외부로 전송되지 않습니다' 안내 문구 표시",
+        "node --check app.js 통과",
+        "Verify in browser using dev-browser skill"
+      ],
+      "priority": 2,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "US-003",
+      "title": "GPT 모델 선택 드롭다운",
+      "description": "As a user, I want to choose the GPT model so that I can balance cost and quality.",
+      "acceptanceCriteria": [
+        "<select> 옵션: gpt-4o-mini (기본, '저렴'), gpt-4o ('고품질'), gpt-4-turbo",
+        "선택값이 localStorage 키 yca.model 에 저장됨",
+        "재방문 시 저장된 모델이 자동 선택됨",
+        "node --check app.js 통과",
+        "Verify in browser using dev-browser skill"
+      ],
+      "priority": 3,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "US-004",
+      "title": "YouTube 링크 입력 및 videoId 추출",
+      "description": "As a user, I want to paste any YouTube URL format and have the app correctly identify the video.",
+      "acceptanceCriteria": [
+        "URL 형식 지원: youtube.com/watch?v=, youtu.be/, youtube.com/shorts/, youtube.com/embed/",
+        "정규식으로 11자 영숫자+_-_ videoId 추출",
+        "유효하지 않은 URL이면 빨간 인라인 에러 메시지 표시",
+        "유효한 URL + 키 둘 다 있으면 '분석 시작' 버튼 활성화",
+        "node --check app.js 통과",
+        "Verify in browser using dev-browser skill"
+      ],
+      "priority": 4,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "US-005",
+      "title": "YouTube 댓글 수집 (최대 500개 페이지네이션)",
+      "description": "As a user, I want the app to collect up to 500 top-level comments via paginated YouTube API calls so that the analysis is meaningful.",
+      "acceptanceCriteria": [
+        "commentThreads.list 호출 (part=snippet, maxResults=100, order=relevance)",
+        "nextPageToken으로 최대 5페이지(=500개) 순차 수집",
+        "답글(replies) 수집 안 함, top-level만",
+        "댓글 비활성화 비디오는 '이 동영상은 댓글이 비활성화되어 있습니다' 메시지",
+        "잘못된 키(403)와 할당량 초과(403 quotaExceeded)를 구분된 메시지로 표시",
+        "수집 중 진행 상태 텍스트 표시 (예: '댓글 수집 중… 200/500')",
+        "수집된 댓글 배열을 [{author, text, likeCount, publishedAt}] 형식으로 정규화",
+        "node --check app.js 통과",
+        "Verify in browser using dev-browser skill"
+      ],
+      "priority": 5,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "US-006",
+      "title": "GPT 분석 호출 (sentiment + 강점/개선점 JSON 응답)",
+      "description": "As a user, I want collected comments analyzed by GPT and returned as structured data so that the UI can render the dashboard.",
+      "acceptanceCriteria": [
+        "OpenAI Chat Completion API 호출, response_format: { type: 'json_object' }",
+        "시스템 프롬프트가 다음 JSON 스키마 강제: { sentiment: {positive,neutral,negative}, strengths: [{comment,reason}*5], improvements: [{comment,reason}*5] }",
+        "sentiment 정수 합 = 분석된 댓글 수",
+        "strengths/improvements는 수집된 댓글 원문에서만 발췌 (LLM 환각 방지 지시 포함)",
+        "reason 필드는 한국어",
+        "댓글이 토큰 한도 초과 시 100개 청크로 분할 호출 후 sentiment 합산 + strengths/improvements 후보 재선별",
+        "OpenAI 401(키 오류), 429(rate limit, 1회 backoff 재시도), 500+ 에러를 구분된 메시지로 처리",
+        "node --check app.js 통과"
+      ],
+      "priority": 6,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "US-007",
+      "title": "결과 대시보드 렌더링 (도넛 차트 + 강점/개선점 카드)",
+      "description": "As a user, I want to see a clean dashboard with sentiment chart and representative comments so that I can interpret the analysis at a glance.",
+      "acceptanceCriteria": [
+        "Chart.js v4 CDN 로드 (cdn.jsdelivr.net)",
+        "도넛 차트: 긍정 #22c55e, 중립 #94a3b8, 부정 #ef4444",
+        "차트 중앙에 총 분석 댓글 수 표시",
+        "'잘하는 점' 섹션: 5개 카드, 각 카드에 댓글 원문 + AI reason",
+        "'개선해야 할 점' 섹션: 동일 형식 5개 카드",
+        "분석 대상 동영상 제목·썸네일 표시 (videos.list 추가 호출)",
+        "최소 360px 너비에서 깨지지 않는 반응형 레이아웃",
+        "node --check app.js 통과",
+        "Verify in browser using dev-browser skill"
+      ],
+      "priority": 7,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "US-008",
+      "title": "로딩·취소·에러 UX (AbortController)",
+      "description": "As a user, I want clear loading indicators and error messages so that I always know the app's state.",
+      "acceptanceCriteria": [
+        "단계별 상태 텍스트: '댓글 수집 중…' → 'GPT 분석 중…' → 결과",
+        "분석 중 '분석 시작' 버튼 disabled (중복 클릭 방지)",
+        "'취소' 버튼이 AbortController.abort()로 진행 중 fetch 중단",
+        "모든 fetch는 try/catch로 감싸 사용자 친화적 메시지로 변환",
+        "에러 시나리오 모두 처리: 잘못된 URL, 댓글 비활성화, 키 누락, 키 무효, 할당량 초과, 네트워크, OpenAI 에러",
+        "node --check app.js 통과",
+        "Verify in browser using dev-browser skill"
+      ],
+      "priority": 8,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "US-009",
+      "title": "README + GitHub Pages 배포 가이드",
+      "description": "As a developer, I want clear setup and deploy instructions so that anyone can fork and host their own copy.",
+      "acceptanceCriteria": [
+        "README.md 섹션 포함: 소개, 사용법, YouTube API 키 발급 방법, OpenAI API 키 발급 방법(비용 경고 포함), 로컬 실행, GitHub Pages 배포",
+        "YouTube API 키 발급: console.cloud.google.com 단계 안내",
+        "OpenAI API 키 발급: platform.openai.com 안내 + gpt-4o-mini 비용 추정",
+        ".github/workflows/pages.yml 또는 수동 GitHub Pages 설정 가이드",
+        "MIT 라이선스 명시",
+        "node --check app.js 통과 (전체 파일 영향 없는지 확인)"
+      ],
+      "priority": 9,
+      "passes": false,
+      "notes": ""
+    }
+  ]
+}
