@@ -11,16 +11,19 @@
 
   const STORAGE_KEYS = Object.freeze({
     YT: 'yca.ytKey',
-    OPENAI: 'yca.openaiKey',
+    GEMINI: 'yca.geminiKey',
     MODEL: 'yca.model',
   });
 
+  // Legacy storage keys to clean up on first load (e.g. previous OpenAI build).
+  const LEGACY_STORAGE_KEYS = Object.freeze(['yca.openaiKey']);
+
   const MODEL_OPTIONS = Object.freeze([
-    'gpt-4o-mini',
-    'gpt-4o',
-    'gpt-4-turbo',
+    'gemini-2.0-flash',
+    'gemini-2.5-flash',
+    'gemini-1.5-pro',
   ]);
-  const DEFAULT_MODEL = 'gpt-4o-mini';
+  const DEFAULT_MODEL = 'gemini-2.0-flash';
 
   function safeGet(key) {
     try {
@@ -93,10 +96,11 @@
     negative: '#ef4444',
   });
 
-  const OPENAI_API_URL = 'https://api.openai.com/v1/chat/completions';
-  const OPENAI_CHUNK_SIZE = 100;
-  const OPENAI_RATE_LIMIT_BACKOFF_MS = 2000;
-  const OPENAI_REPRESENTATIVE_COUNT = 5;
+  const GEMINI_API_BASE =
+    'https://generativelanguage.googleapis.com/v1beta/models/';
+  const GEMINI_CHUNK_SIZE = 100;
+  const GEMINI_RATE_LIMIT_BACKOFF_MS = 2000;
+  const REPRESENTATIVE_COUNT = 5;
 
   const ANALYSIS_SYSTEM_PROMPT =
     '당신은 YouTube 댓글을 분석하는 한국어 전문 분석가입니다.\n' +
@@ -155,54 +159,73 @@
     );
   }
 
-  function classifyOpenAIError(status, body) {
+  function classifyGeminiError(status, body) {
     const msg =
       (body && body.error && typeof body.error.message === 'string'
         ? body.error.message
         : '') || '';
-    if (status === 401) {
+    const reason =
+      body && body.error && typeof body.error.status === 'string'
+        ? body.error.status
+        : '';
+    if (status === 400 && /API key/i.test(msg)) {
       return makeError(
-        'openaiKeyInvalid',
-        'OpenAI API 키가 유효하지 않습니다. 키를 다시 확인해 주세요.'
+        'geminiKeyInvalid',
+        'Gemini API 키가 유효하지 않습니다. 키를 다시 확인해 주세요.'
       );
     }
-    if (status === 429) {
+    if (status === 401 || status === 403) {
+      return makeError(
+        'geminiKeyInvalid',
+        'Gemini API 키가 유효하지 않거나 권한이 없습니다. 키와 Generative Language API 활성화 여부를 확인해 주세요.'
+      );
+    }
+    if (status === 429 || reason === 'RESOURCE_EXHAUSTED') {
       return makeError(
         'rateLimit',
-        'OpenAI 요청 한도(rate limit)에 도달했습니다. 잠시 후 다시 시도해 주세요.'
+        'Gemini 요청 한도(rate limit / 무료 할당량)에 도달했습니다. 잠시 후 다시 시도해 주세요.'
       );
     }
     if (status >= 500) {
       return makeError(
-        'openaiServer',
-        'OpenAI 서버 오류 (HTTP ' + status + '). 잠시 후 다시 시도해 주세요.'
+        'geminiServer',
+        'Gemini 서버 오류 (HTTP ' + status + '). 잠시 후 다시 시도해 주세요.'
       );
     }
     return makeError(
-      'openaiError',
-      'OpenAI API 오류 (HTTP ' + status + ')' + (msg ? ': ' + msg : '.')
+      'geminiError',
+      'Gemini API 오류 (HTTP ' + status + ')' + (msg ? ': ' + msg : '.')
     );
   }
 
-  async function callOpenAI(params) {
+  async function callGemini(params) {
+    const url =
+      GEMINI_API_BASE +
+      encodeURIComponent(params.model) +
+      ':generateContent?key=' +
+      encodeURIComponent(params.apiKey);
+
     const requestBody = {
-      model: params.model,
-      messages: [
-        { role: 'system', content: params.systemPrompt },
-        { role: 'user', content: params.userPrompt },
+      systemInstruction: {
+        parts: [{ text: params.systemPrompt }],
+      },
+      contents: [
+        {
+          role: 'user',
+          parts: [{ text: params.userPrompt }],
+        },
       ],
-      response_format: { type: 'json_object' },
-      temperature: 0.2,
+      generationConfig: {
+        responseMimeType: 'application/json',
+        temperature: 0.2,
+      },
     };
 
     let response;
     try {
-      response = await fetch(OPENAI_API_URL, {
+      response = await fetch(url, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: 'Bearer ' + params.apiKey,
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(requestBody),
         signal: params.signal,
       });
@@ -227,41 +250,56 @@
     }
 
     if (!response.ok) {
-      throw classifyOpenAIError(response.status, parsed);
+      throw classifyGeminiError(response.status, parsed);
     }
 
-    const content =
-      parsed &&
-      parsed.choices &&
-      parsed.choices[0] &&
-      parsed.choices[0].message &&
-      parsed.choices[0].message.content;
-    if (typeof content !== 'string') {
+    const candidate = parsed && parsed.candidates && parsed.candidates[0];
+    if (
+      candidate &&
+      candidate.finishReason &&
+      candidate.finishReason !== 'STOP' &&
+      candidate.finishReason !== 'MAX_TOKENS'
+    ) {
       throw makeError(
-        'openaiError',
-        'OpenAI 응답을 해석할 수 없습니다.'
+        'geminiError',
+        'Gemini 응답이 차단되었습니다 (finishReason: ' +
+          candidate.finishReason +
+          ').'
+      );
+    }
+
+    const parts =
+      candidate && candidate.content && candidate.content.parts;
+    const text =
+      Array.isArray(parts) && parts.length > 0
+        ? parts.map(function (p) { return (p && p.text) || ''; }).join('')
+        : '';
+    if (!text) {
+      throw makeError(
+        'geminiError',
+        'Gemini 응답을 해석할 수 없습니다.'
       );
     }
 
     let json;
     try {
-      json = JSON.parse(content);
+      json = JSON.parse(text);
     } catch (_) {
       throw makeError(
-        'openaiError',
-        'OpenAI 응답이 JSON 형식이 아닙니다.'
+        'geminiError',
+        'Gemini 응답이 JSON 형식이 아닙니다.'
       );
     }
     return json;
   }
 
-  async function callOpenAIWithRetry(params) {
+  async function callGeminiWithRetry(params) {
     try {
-      return await callOpenAI(params);
+      return await callGemini(params);
     } catch (err) {
       if (err && err.code === 'rateLimit') {
-        await delay(OPENAI_RATE_LIMIT_BACKOFF_MS, params.signal);
-        return await callOpenAI(params);
+        await delay(GEMINI_RATE_LIMIT_BACKOFF_MS, params.signal);
+        return await callGemini(params);
       }
       throw err;
     }
@@ -278,7 +316,7 @@
   function normalizeRepresentativeList(list) {
     if (!Array.isArray(list)) return [];
     return list
-      .slice(0, OPENAI_REPRESENTATIVE_COUNT)
+      .slice(0, REPRESENTATIVE_COUNT)
       .map(function (item) {
         return {
           comment:
@@ -342,14 +380,14 @@
       throw makeError('noComments', '분석할 댓글이 없습니다.');
     }
     if (!apiKey) {
-      throw makeError('missingKey', 'OpenAI API 키가 없습니다.');
+      throw makeError('missingKey', 'Gemini API 키가 없습니다.');
     }
 
-    const chunks = chunkArray(comments, OPENAI_CHUNK_SIZE);
+    const chunks = chunkArray(comments, GEMINI_CHUNK_SIZE);
 
     if (chunks.length === 1) {
       onPhase({ step: 1, total: 1 });
-      const raw = await callOpenAIWithRetry({
+      const raw = await callGeminiWithRetry({
         apiKey: apiKey,
         model: model,
         systemPrompt: ANALYSIS_SYSTEM_PROMPT,
@@ -371,7 +409,7 @@
         throw makeError('aborted', '분석이 취소되었습니다.');
       }
       onPhase({ step: i + 1, total: totalSteps });
-      const raw = await callOpenAIWithRetry({
+      const raw = await callGeminiWithRetry({
         apiKey: apiKey,
         model: model,
         systemPrompt: ANALYSIS_SYSTEM_PROMPT,
@@ -390,7 +428,7 @@
       throw makeError('aborted', '분석이 취소되었습니다.');
     }
     onPhase({ step: totalSteps, total: totalSteps });
-    const aggRaw = await callOpenAIWithRetry({
+    const aggRaw = await callGeminiWithRetry({
       apiKey: apiKey,
       model: model,
       systemPrompt: ANALYSIS_AGGREGATE_SYSTEM_PROMPT,
@@ -410,11 +448,11 @@
       strengths:
         aggStrengths.length > 0
           ? aggStrengths
-          : strengthCandidates.slice(0, OPENAI_REPRESENTATIVE_COUNT),
+          : strengthCandidates.slice(0, REPRESENTATIVE_COUNT),
       improvements:
         aggImprovements.length > 0
           ? aggImprovements
-          : improvementCandidates.slice(0, OPENAI_REPRESENTATIVE_COUNT),
+          : improvementCandidates.slice(0, REPRESENTATIVE_COUNT),
       analyzedCount: comments.length,
     };
   }
@@ -697,10 +735,13 @@
   }
 
   document.addEventListener('DOMContentLoaded', function onReady() {
+    // One-time cleanup of keys from previous (OpenAI) build.
+    LEGACY_STORAGE_KEYS.forEach(safeRemove);
+
     const ytInput = document.getElementById('ytKeyInput');
-    const openaiInput = document.getElementById('openaiKeyInput');
+    const geminiInput = document.getElementById('geminiKeyInput');
     const ytStatus = document.getElementById('ytKeyStatus');
-    const openaiStatus = document.getElementById('openaiKeyStatus');
+    const geminiStatus = document.getElementById('geminiKeyStatus');
     const saveBtn = document.getElementById('saveKeysBtn');
     const clearBtn = document.getElementById('clearKeysBtn');
     const startBtn = document.getElementById('startAnalysisBtn');
@@ -724,9 +765,9 @@
 
     if (
       !ytInput ||
-      !openaiInput ||
+      !geminiInput ||
       !ytStatus ||
-      !openaiStatus ||
+      !geminiStatus ||
       !saveBtn ||
       !clearBtn ||
       !startBtn ||
@@ -783,10 +824,10 @@
 
     function refresh() {
       const ytKey = safeGet(STORAGE_KEYS.YT);
-      const openaiKey = safeGet(STORAGE_KEYS.OPENAI);
+      const geminiKey = safeGet(STORAGE_KEYS.GEMINI);
 
       renderStatus(ytStatus, ytKey);
-      renderStatus(openaiStatus, openaiKey);
+      renderStatus(geminiStatus, geminiKey);
 
       const rawUrl = videoUrlInput.value.trim();
       const videoId = extractVideoId(rawUrl);
@@ -806,7 +847,7 @@
         videoUrlInput.removeAttribute('aria-invalid');
       }
 
-      const keysPresent = Boolean(ytKey) && Boolean(openaiKey);
+      const keysPresent = Boolean(ytKey) && Boolean(geminiKey);
       startBtn.disabled = !(keysPresent && Boolean(videoId)) || inFlight;
       cancelBtn.hidden = !inFlight;
 
@@ -968,9 +1009,9 @@
     async function runAnalysis() {
       if (inFlight) return;
       const ytKey = safeGet(STORAGE_KEYS.YT);
-      const openaiKey = safeGet(STORAGE_KEYS.OPENAI);
+      const geminiKey = safeGet(STORAGE_KEYS.GEMINI);
       const videoId = extractVideoId(videoUrlInput.value.trim());
-      if (!ytKey || !openaiKey || !videoId) {
+      if (!ytKey || !geminiKey || !videoId) {
         return;
       }
 
@@ -1010,20 +1051,20 @@
           : DEFAULT_MODEL;
 
         setStatus(
-          `GPT 분석 중… (${comments.length}개 댓글, 모델: ${model})`,
+          `Gemini 분석 중… (${comments.length}개 댓글, 모델: ${model})`,
           null
         );
 
         const analysis = await analyzeComments({
           comments,
-          apiKey: openaiKey,
+          apiKey: geminiKey,
           model,
           signal: signal,
           onPhase({ step, total }) {
             const label =
               total > 1
-                ? `GPT 분석 중… (${step}/${total} · 모델: ${model})`
-                : `GPT 분석 중… (모델: ${model})`;
+                ? `Gemini 분석 중… (${step}/${total} · 모델: ${model})`
+                : `Gemini 분석 중… (모델: ${model})`;
             setStatus(label, null);
           },
         });
@@ -1055,25 +1096,25 @@
 
     saveBtn.addEventListener('click', function onSave() {
       const ytValue = ytInput.value.trim();
-      const openaiValue = openaiInput.value.trim();
+      const geminiValue = geminiInput.value.trim();
 
       if (ytValue) {
         safeSet(STORAGE_KEYS.YT, ytValue);
       }
-      if (openaiValue) {
-        safeSet(STORAGE_KEYS.OPENAI, openaiValue);
+      if (geminiValue) {
+        safeSet(STORAGE_KEYS.GEMINI, geminiValue);
       }
 
       ytInput.value = '';
-      openaiInput.value = '';
+      geminiInput.value = '';
       refresh();
     });
 
     clearBtn.addEventListener('click', function onClear() {
       safeRemove(STORAGE_KEYS.YT);
-      safeRemove(STORAGE_KEYS.OPENAI);
+      safeRemove(STORAGE_KEYS.GEMINI);
       ytInput.value = '';
-      openaiInput.value = '';
+      geminiInput.value = '';
       refresh();
     });
 

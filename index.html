@@ -10,7 +10,7 @@
     <header class="app-header">
       <h1>YouTube Comment Analyzer</h1>
       <p class="tagline">
-        YouTube 영상 댓글을 수집해 GPT로 감정·강점·개선점을 분석합니다.
+        YouTube 영상 댓글을 수집해 Google Gemini로 감정·강점·개선점을 분석합니다.
       </p>
     </header>
 
@@ -19,8 +19,8 @@
         <h2 id="api-keys-title" class="panel-title">API 키 설정</h2>
         <p class="hint">
           키는 외부로 전송되지 않습니다. 브라우저
-          <code>localStorage</code> 에만 저장되며, YouTube Data API와 OpenAI API
-          호출에만 사용됩니다.
+          <code>localStorage</code> 에만 저장되며, YouTube Data API와
+          Google Gemini API 호출에만 사용됩니다.
         </p>
 
         <div class="field">
@@ -39,16 +39,16 @@
         </div>
 
         <div class="field">
-          <label for="openaiKeyInput">OpenAI API 키</label>
+          <label for="geminiKeyInput">Gemini API 키</label>
           <input
-            id="openaiKeyInput"
-            name="openaiKey"
+            id="geminiKeyInput"
+            name="geminiKey"
             type="password"
             autocomplete="off"
             spellcheck="false"
-            placeholder="sk-..."
+            placeholder="AIza..."
           />
-          <p class="key-status" id="openaiKeyStatus" aria-live="polite">
+          <p class="key-status" id="geminiKeyStatus" aria-live="polite">
             저장된 키가 없습니다.
           </p>
         </div>
@@ -67,15 +67,21 @@
         <h2 id="analysis-title" class="panel-title">분석</h2>
 
         <div class="field">
-          <label for="modelSelect">GPT 모델</label>
+          <label for="modelSelect">Gemini 모델</label>
           <select id="modelSelect" name="model">
-            <option value="gpt-4o-mini">gpt-4o-mini (저렴, 기본)</option>
-            <option value="gpt-4o">gpt-4o (고품질)</option>
-            <option value="gpt-4-turbo">gpt-4-turbo</option>
+            <option value="gemini-2.0-flash">
+              gemini-2.0-flash (빠름, 무료 할당량 넉넉, 기본)
+            </option>
+            <option value="gemini-2.5-flash">
+              gemini-2.5-flash (최신, 약간 더 정확)
+            </option>
+            <option value="gemini-1.5-pro">
+              gemini-1.5-pro (고품질, 무료 할당량 적음)
+            </option>
           </select>
           <p class="hint">
-            저렴한 gpt-4o-mini가 기본값입니다. 더 정교한 분석이 필요하면 다른
-            모델을 선택하세요.
+            기본값 gemini-2.0-flash는 무료 할당량이 가장 넉넉합니다. 더 정교한
+            분석이 필요하면 다른 모델을 선택하세요.
           </p>
         </div>
 
