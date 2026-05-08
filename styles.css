@@ -161,6 +161,26 @@ body {
   display: none;
 }
 
+.status-text {
+  margin: 0.75rem 0 0 0;
+  font-size: 0.9rem;
+  color: var(--color-muted);
+  min-height: 1.25rem;
+}
+
+.status-text:empty {
+  margin: 0;
+  min-height: 0;
+}
+
+.status-text.error {
+  color: var(--color-negative);
+}
+
+.status-text.success {
+  color: var(--color-positive);
+}
+
 .button-row {
   display: flex;
   flex-wrap: wrap;

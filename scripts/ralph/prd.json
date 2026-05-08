@@ -86,8 +86,8 @@
         "Verify in browser using dev-browser skill"
       ],
       "priority": 5,
-      "passes": false,
-      "notes": ""
+      "passes": true,
+      "notes": "Comment collection layer added. fetchCommentsPage() builds commentThreads.list URL with part=snippet, maxResults=100, order=relevance, optional pageToken. collectComments() loops up to 5 pages or until nextPageToken is empty (max 500 top-level comments), reports progress via onProgress({collected,target,page}), normalizes to [{author,text,likeCount,publishedAt}] using snippet.topLevelComment.snippet (textOriginal preferred, textDisplay fallback). classifyYouTubeError() distinguishes 403 commentsDisabled / 403 quotaExceeded / 400 keyInvalid / 403 forbidden / 404 videoNotFound / 5xx with Korean messages. Wired #startAnalysisBtn to runAnalysis(); inFlight gate added to refresh() so the button stays disabled during fetch. Progress text rendered into new #analysisStatus element ('댓글 수집 중… N/500'). Sandbox-tested URL build, error classification (7 cases), normalization (with/without textOriginal, null), pagination (3-page, 8-page-capped-at-5, empty, error propagation, invalid id) — all pass. dev-browser skill not available — manual browser verification noted in progress.txt."
     },
     {
       "id": "US-006",
