@@ -156,8 +156,8 @@
         "node --check app.js 통과 (전체 파일 영향 없는지 확인)"
       ],
       "priority": 9,
-      "passes": false,
-      "notes": ""
+      "passes": true,
+      "notes": "README.md fully rewritten with sections: 소개 / 사용법 / YouTube API 키 발급 (Google Cloud Console 단계별 안내, quota 설명) / OpenAI API 키 발급 (platform.openai.com 안내, gpt-4o-mini 비용 추정 표 포함, billing 한도 설정 권고) / 로컬 실행 (file:// 직접 열기 + python http.server + npx serve 옵션) / GitHub Pages 배포 (Actions 자동 배포 + 수동 branch 배포 두 방식). LICENSE 파일 추가 (MIT, copyright 2026). .github/workflows/pages.yml 추가 — actions/checkout@v4 + configure-pages@v5 + upload-pages-artifact@v3 + deploy-pages@v4 표준 패턴, on push:main + workflow_dispatch, concurrency group=pages, permissions contents:read/pages:write/id-token:write. node --check app.js ✅ (전체 파일 영향 없음 — 코드 변경 없음, 문서/CI 파일만 추가)."
     }
   ]
 }
