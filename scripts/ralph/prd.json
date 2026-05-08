@@ -140,8 +140,8 @@
         "Verify in browser using dev-browser skill"
       ],
       "priority": 8,
-      "passes": false,
-      "notes": ""
+      "passes": true,
+      "notes": "AbortController-based cancel UX wired in. New '취소' button (#cancelAnalysisBtn, .btn-secondary) sits next to '분석 시작' inside .button-row.analysis-controls; hidden by default, shown via refresh() while inFlight, hidden again on completion/cancel/error. New module-level helpers: isAbortError(err) (name === 'AbortError') and delay(ms, signal) — abortable Promise that rejects with code:'aborted' immediately if pre-aborted or mid-sleep. Threaded `signal` through fetchCommentsPage(videoId, apiKey, pageToken, signal), fetchVideoInfo(videoId, apiKey, signal), callOpenAI({...,signal}), callOpenAIWithRetry (forwards via params.signal, replaces raw setTimeout sleep with delay()), collectComments({onProgress, signal}) with signal.aborted check between pages, analyzeComments({...,signal}) with signal.aborted check between chunks AND before the aggregation step. Each fetch try/catch now distinguishes AbortError → code:'aborted' from generic network failure. runAnalysis() creates AbortController per run, stores it on closure-scoped currentAbortController, passes signal to fetchVideoInfo/collectComments/analyzeComments; on catch branches err.code === 'aborted' → setStatus('분석이 취소되었습니다.', null) (neutral, not red error styling) vs other errors → setStatus(message, 'error'); finally clears currentAbortController and toggles inFlight off via refresh(). Cancel button click → currentAbortController.abort(). 10-test sandbox covers delay (no signal / non-aborted / pre-aborted / mid-sleep), isAbortError detection (4 cases), real fetch-like abort flow, and listener cleanup over 3 sequential delays — all pass. node --check ✅. dev-browser skill not available — manual browser verification noted in progress.txt."
     },
     {
       "id": "US-009",

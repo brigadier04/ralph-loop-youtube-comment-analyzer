@@ -54,6 +54,30 @@
     return `${head}…${tail}`;
   }
 
+  function isAbortError(err) {
+    return Boolean(err && err.name === 'AbortError');
+  }
+
+  function delay(ms, signal) {
+    return new Promise(function (resolve, reject) {
+      if (signal && signal.aborted) {
+        reject(makeError('aborted', '분석이 취소되었습니다.'));
+        return;
+      }
+      let timer = null;
+      function onAbort() {
+        if (timer) clearTimeout(timer);
+        if (signal) signal.removeEventListener('abort', onAbort);
+        reject(makeError('aborted', '분석이 취소되었습니다.'));
+      }
+      timer = setTimeout(function () {
+        if (signal) signal.removeEventListener('abort', onAbort);
+        resolve();
+      }, ms);
+      if (signal) signal.addEventListener('abort', onAbort);
+    });
+  }
+
   const VIDEO_ID_PATTERN = /^[A-Za-z0-9_-]{11}$/;
 
   const COMMENTS_API_URL =
@@ -180,8 +204,12 @@
           Authorization: 'Bearer ' + params.apiKey,
         },
         body: JSON.stringify(requestBody),
+        signal: params.signal,
       });
-    } catch (_) {
+    } catch (err) {
+      if (isAbortError(err)) {
+        throw makeError('aborted', '분석이 취소되었습니다.');
+      }
       throw makeError(
         'network',
         '네트워크 오류가 발생했습니다. 연결을 확인하고 다시 시도해 주세요.'
@@ -191,7 +219,10 @@
     let parsed = null;
     try {
       parsed = await response.json();
-    } catch (_) {
+    } catch (err) {
+      if (isAbortError(err)) {
+        throw makeError('aborted', '분석이 취소되었습니다.');
+      }
       parsed = null;
     }
 
@@ -229,9 +260,7 @@
       return await callOpenAI(params);
     } catch (err) {
       if (err && err.code === 'rateLimit') {
-        await new Promise(function (resolve) {
-          setTimeout(resolve, OPENAI_RATE_LIMIT_BACKOFF_MS);
-        });
+        await delay(OPENAI_RATE_LIMIT_BACKOFF_MS, params.signal);
         return await callOpenAI(params);
       }
       throw err;
@@ -305,6 +334,7 @@
     const comments = params.comments;
     const apiKey = params.apiKey;
     const model = params.model;
+    const signal = params.signal;
     const onPhase =
       typeof params.onPhase === 'function' ? params.onPhase : function () {};
 
@@ -324,6 +354,7 @@
         model: model,
         systemPrompt: ANALYSIS_SYSTEM_PROMPT,
         userPrompt: buildAnalysisUserPrompt(comments),
+        signal: signal,
       });
       return normalizeAnalysisResult(raw, comments.length);
     }
@@ -336,12 +367,16 @@
     const improvementCandidates = [];
 
     for (let i = 0; i < chunks.length; i += 1) {
+      if (signal && signal.aborted) {
+        throw makeError('aborted', '분석이 취소되었습니다.');
+      }
       onPhase({ step: i + 1, total: totalSteps });
       const raw = await callOpenAIWithRetry({
         apiKey: apiKey,
         model: model,
         systemPrompt: ANALYSIS_SYSTEM_PROMPT,
         userPrompt: buildAnalysisUserPrompt(chunks[i]),
+        signal: signal,
       });
       const norm = normalizeAnalysisResult(raw, chunks[i].length);
       positive += norm.sentiment.positive;
@@ -351,6 +386,9 @@
       for (const m of norm.improvements) improvementCandidates.push(m);
     }
 
+    if (signal && signal.aborted) {
+      throw makeError('aborted', '분석이 취소되었습니다.');
+    }
     onPhase({ step: totalSteps, total: totalSteps });
     const aggRaw = await callOpenAIWithRetry({
       apiKey: apiKey,
@@ -360,6 +398,7 @@
         strengthCandidates,
         improvementCandidates
       ),
+      signal: signal,
     });
     const aggStrengths = normalizeRepresentativeList(aggRaw && aggRaw.strengths);
     const aggImprovements = normalizeRepresentativeList(
@@ -431,7 +470,7 @@
     );
   }
 
-  async function fetchCommentsPage(videoId, apiKey, pageToken) {
+  async function fetchCommentsPage(videoId, apiKey, pageToken, signal) {
     const url = new URL(COMMENTS_API_URL);
     url.searchParams.set('part', 'snippet');
     url.searchParams.set('videoId', videoId);
@@ -444,8 +483,11 @@
 
     let response;
     try {
-      response = await fetch(url.toString());
-    } catch (_) {
+      response = await fetch(url.toString(), { signal: signal });
+    } catch (err) {
+      if (isAbortError(err)) {
+        throw makeError('aborted', '분석이 취소되었습니다.');
+      }
       throw makeError(
         'network',
         '네트워크 오류가 발생했습니다. 연결을 확인하고 다시 시도해 주세요.'
@@ -455,7 +497,10 @@
     let body = null;
     try {
       body = await response.json();
-    } catch (_) {
+    } catch (err) {
+      if (isAbortError(err)) {
+        throw makeError('aborted', '분석이 취소되었습니다.');
+      }
       body = null;
     }
 
@@ -493,6 +538,7 @@
 
   async function collectComments(videoId, apiKey, options) {
     const opts = options || {};
+    const signal = opts.signal;
     const onProgress =
       typeof opts.onProgress === 'function' ? opts.onProgress : function () {};
 
@@ -509,7 +555,10 @@
     onProgress({ collected: 0, target: COMMENTS_TARGET, page: 0 });
 
     for (let page = 0; page < COMMENTS_MAX_PAGES; page += 1) {
-      const data = await fetchCommentsPage(videoId, apiKey, pageToken);
+      if (signal && signal.aborted) {
+        throw makeError('aborted', '분석이 취소되었습니다.');
+      }
+      const data = await fetchCommentsPage(videoId, apiKey, pageToken, signal);
       const items = Array.isArray(data.items) ? data.items : [];
 
       for (const item of items) {
@@ -532,7 +581,7 @@
     return collected;
   }
 
-  async function fetchVideoInfo(videoId, apiKey) {
+  async function fetchVideoInfo(videoId, apiKey, signal) {
     if (!VIDEO_ID_PATTERN.test(String(videoId || ''))) {
       throw makeError('invalidVideoId', '유효하지 않은 동영상 ID 입니다.');
     }
@@ -547,8 +596,11 @@
 
     let response;
     try {
-      response = await fetch(url.toString());
-    } catch (_) {
+      response = await fetch(url.toString(), { signal: signal });
+    } catch (err) {
+      if (isAbortError(err)) {
+        throw makeError('aborted', '분석이 취소되었습니다.');
+      }
       throw makeError(
         'network',
         '네트워크 오류가 발생했습니다. 연결을 확인하고 다시 시도해 주세요.'
@@ -558,7 +610,10 @@
     let body = null;
     try {
       body = await response.json();
-    } catch (_) {
+    } catch (err) {
+      if (isAbortError(err)) {
+        throw makeError('aborted', '분석이 취소되었습니다.');
+      }
       body = null;
     }
 
@@ -649,6 +704,7 @@
     const saveBtn = document.getElementById('saveKeysBtn');
     const clearBtn = document.getElementById('clearKeysBtn');
     const startBtn = document.getElementById('startAnalysisBtn');
+    const cancelBtn = document.getElementById('cancelAnalysisBtn');
     const analysisHint = document.getElementById('analysisHint');
     const modelSelect = document.getElementById('modelSelect');
     const videoUrlInput = document.getElementById('videoUrlInput');
@@ -674,6 +730,7 @@
       !saveBtn ||
       !clearBtn ||
       !startBtn ||
+      !cancelBtn ||
       !analysisHint ||
       !modelSelect ||
       !videoUrlInput ||
@@ -696,6 +753,7 @@
 
     let inFlight = false;
     let chartInstance = null;
+    let currentAbortController = null;
 
     const savedModel = safeGet(STORAGE_KEYS.MODEL);
     modelSelect.value = MODEL_OPTIONS.includes(savedModel)
@@ -750,6 +808,7 @@
 
       const keysPresent = Boolean(ytKey) && Boolean(openaiKey);
       startBtn.disabled = !(keysPresent && Boolean(videoId)) || inFlight;
+      cancelBtn.hidden = !inFlight;
 
       if (inFlight) {
         analysisHint.textContent = '분석 중입니다…';
@@ -915,17 +974,24 @@
         return;
       }
 
+      const abortController = new AbortController();
+      currentAbortController = abortController;
+      const signal = abortController.signal;
+
       inFlight = true;
       dashboardPanel.hidden = true;
       refresh();
       setStatus(`댓글 수집 중… 0/${COMMENTS_TARGET}`, null);
 
-      const videoInfoPromise = fetchVideoInfo(videoId, ytKey).catch(function () {
-        return null;
-      });
+      const videoInfoPromise = fetchVideoInfo(videoId, ytKey, signal).catch(
+        function () {
+          return null;
+        }
+      );
 
       try {
         const comments = await collectComments(videoId, ytKey, {
+          signal: signal,
           onProgress(progress) {
             setStatus(
               `댓글 수집 중… ${progress.collected}/${COMMENTS_TARGET}`,
@@ -952,6 +1018,7 @@
           comments,
           apiKey: openaiKey,
           model,
+          signal: signal,
           onPhase({ step, total }) {
             const label =
               total > 1
@@ -971,12 +1038,17 @@
           'success'
         );
       } catch (err) {
-        const message =
-          (err && err.message) ||
-          '댓글 수집 중 알 수 없는 오류가 발생했습니다.';
-        setStatus(message, 'error');
+        if (err && err.code === 'aborted') {
+          setStatus('분석이 취소되었습니다.', null);
+        } else {
+          const message =
+            (err && err.message) ||
+            '댓글 수집 중 알 수 없는 오류가 발생했습니다.';
+          setStatus(message, 'error');
+        }
       } finally {
         inFlight = false;
+        currentAbortController = null;
         refresh();
       }
     }
@@ -1013,6 +1085,12 @@
     });
 
     startBtn.addEventListener('click', runAnalysis);
+
+    cancelBtn.addEventListener('click', function onCancel() {
+      if (currentAbortController) {
+        currentAbortController.abort();
+      }
+    });
 
     refresh();
   });

@@ -102,14 +102,24 @@
         <p class="hint" id="analysisHint">
           두 개의 API 키를 모두 저장하면 분석을 시작할 수 있습니다.
         </p>
-        <button
-          type="button"
-          id="startAnalysisBtn"
-          class="btn btn-accent"
-          disabled
-        >
-          분석 시작
-        </button>
+        <div class="button-row analysis-controls">
+          <button
+            type="button"
+            id="startAnalysisBtn"
+            class="btn btn-accent"
+            disabled
+          >
+            분석 시작
+          </button>
+          <button
+            type="button"
+            id="cancelAnalysisBtn"
+            class="btn btn-secondary"
+            hidden
+          >
+            취소
+          </button>
+        </div>
         <p
           class="status-text"
           id="analysisStatus"
