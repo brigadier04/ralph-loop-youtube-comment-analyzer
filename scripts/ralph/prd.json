@@ -104,8 +104,8 @@
         "node --check app.js 통과"
       ],
       "priority": 6,
-      "passes": false,
-      "notes": ""
+      "passes": true,
+      "notes": "GPT analysis layer added. callOpenAI() POSTs to /v1/chat/completions with response_format={type:'json_object'}, temperature 0.2. ANALYSIS_SYSTEM_PROMPT enforces the schema (sentiment {positive,neutral,negative} + strengths/improvements arrays of 5 {comment,reason}), demands sum=count, requires Korean reasons, and explicitly forbids hallucination (comment must be verbatim from input). buildAnalysisUserPrompt formats numbered comments with whitespace collapsed and 1000-char clipping. classifyOpenAIError maps 401→openaiKeyInvalid, 429→rateLimit, 5xx→openaiServer, else openaiError; callOpenAIWithRetry retries once on 429 after OPENAI_RATE_LIMIT_BACKOFF_MS=2000ms. analyzeComments() chunks into ≤100-comment groups: single-chunk path = 1 call, multi-chunk path runs N analysis calls + 1 aggregation call (ANALYSIS_AGGREGATE_SYSTEM_PROMPT) that re-selects top 5 from pooled candidates. normalizeAnalysisResult clamps negatives, fills neutral=count when LLM returns all zeros, and proportionally renormalizes when sum≠count. Wired into runAnalysis() with onPhase progress text ('GPT 분석 중… (step/total · 모델: X)'). Sandbox-tested 21 cases (chunking edge cases, error classification 6 statuses, normalization with exact/off-by-one/over-count/zero/negative/missing fields, list cap+empty filter) — all pass. node --check ✅."
     },
     {
       "id": "US-007",
